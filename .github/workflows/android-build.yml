@@ -4,10 +4,16 @@ on:
   workflow_call:
     inputs:
       java-version:
+        description: "JDK version"
         required: false
         type: string
         default: "17"
 
+      gradle-tasks:
+        description: "Gradle tasks to run"
+        required: false
+        type: string
+        default: "assembleDebug assembleRelease lint"
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -26,11 +32,8 @@ jobs:
           java-version: ${{ inputs.java-version }}
           cache: gradle
 
-      - name: Build with Gradle
-        run: ./gradlew assembleDebug assembleRelease
-
-      - name: Run Android Lint
-        run: ./gradlew lint
+      - name: Build / Lint with Gradle
+        run: ./gradlew ${{ inputs.gradle-tasks }}
 
       - name: List APK Output Directory
         run: ls -R app/build/outputs/apk || true
