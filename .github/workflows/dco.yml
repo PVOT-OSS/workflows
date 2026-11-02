@@ -1,0 +1,53 @@
+# SPDX-FileCopyrightText: 2026 Saalim Quadri <danascape@gmail.com>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+name: DCO
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  dco:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check Signed-off-by on all PR commits
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${BASE_SHA}" ] || [ -z "${HEAD_SHA}" ]; then
+            echo "::error::This workflow must be called from a pull_request event."
+            exit 1
+          fi
+
+          failed=0
+          for sha in $(git rev-list --no-merges "${BASE_SHA}..${HEAD_SHA}"); do
+            author="$(git log -1 --format='%an <%ae>' "${sha}")"
+            if git log -1 --format='%(trailers:key=Signed-off-by,valueonly)' "${sha}" \
+                 | grep -qxF "${author}"; then
+              echo "OK       ${sha:0:12} ${author}"
+            else
+              echo "::error::Commit ${sha:0:12} is missing 'Signed-off-by: ${author}'"
+              failed=1
+            fi
+          done
+
+          if [ "${failed}" -ne 0 ]; then
+            echo
+            echo "Sign off with 'git commit -s --amend' (last commit)"
+            echo "or 'git rebase --signoff ${BASE_SHA:0:12}' (a series), then force-push."
+            echo "See https://developercertificate.org/"
+            exit 1
+          fi
